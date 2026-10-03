@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Retorno da frota</title>
+<style>
+:root{--bg:#f6f7f4;--card:#fff;--ink:#14231c;--mut:#5d6b64;--ln:#dde3dd;--g:#1f7a4d;--r:#b3382c;--a:#c98a0b;--bar:#e6ebe6;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101814;--card:#18231d;--ink:#e8efe9;--mut:#9aaaa0;--ln:#2a382f;--g:#4fc086;--r:#ef7d70;--a:#e3b046;--bar:#26342b}}
+:root[data-theme="dark"]{--bg:#101814;--card:#18231d;--ink:#e8efe9;--mut:#9aaaa0;--ln:#2a382f;--g:#4fc086;--r:#ef7d70;--a:#e3b046;--bar:#26342b}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 "Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+main{max-width:920px;margin:0 auto;padding:16px}
+h1{font-size:1.4rem;margin:.2rem 0 .1rem}.sub{color:var(--mut);margin:0 0 14px;font-size:.9rem}
+nav{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;border-bottom:1px solid var(--ln);margin-bottom:16px}
+nav button{flex:none;border:1px solid var(--ln);background:var(--card);color:var(--ink);padding:9px 14px;border-radius:8px;font:inherit;cursor:pointer}
+nav button[aria-selected=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+nav button:focus-visible{outline:3px solid var(--g);outline-offset:2px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-bottom:16px}
+.k{background:var(--card);border:1px solid var(--ln);border-radius:10px;padding:12px 14px}
+.k small{color:var(--mut);display:block;font-size:.8rem}.k b{font-size:1.3rem}
+.pos{color:var(--g)}.neg{color:var(--r)}.warn{color:var(--a)}
+.row{background:var(--card);border:1px solid var(--ln);border-radius:10px;padding:14px;margin-bottom:10px}
+.row h3{margin:0 0 6px;font-size:1.05rem;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.bar{height:14px;background:var(--bar);border-radius:7px;overflow:hidden;margin:6px 0}
+.bar i{display:block;height:100%;background:var(--g)}
+.meta{display:flex;flex-wrap:wrap;gap:4px 18px;color:var(--mut);font-size:.88rem}
+.box{background:var(--card);border:1px solid var(--ln);border-radius:10px;padding:14px;margin-bottom:14px;overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.92rem}td,th{padding:7px 8px;border-bottom:1px solid var(--ln);text-align:right}td:first-child,th:first-child{text-align:left}
+input{width:110px;font:inherit;padding:4px 6px;border:1px solid var(--ln);border-radius:6px;background:var(--bg);color:var(--ink);text-align:right}.note{color:var(--mut);font-size:.82rem}
+</style></head><body><main>
+<h1>Retorno sobre o investimento da frota</h1>
+<p class="sub"><span id="sub"></span> <button onclick="load()" style="font:inherit;padding:4px 10px;border-radius:6px;border:1px solid var(--ln);background:var(--card);color:var(--ink);cursor:pointer">Atualizar agora</button></p>
+<nav role="tablist" id="tabs"></nav>
+<section id="view"></section>
+<p class="note">Regra: retorno = entradas − saídas ≥ valor pago no carro. Parcelas do consórcio não entram como saída. Ritmo semanal = média das últimas 8 semanas (entradas) e média de saídas desde a compra. Projeção assume que o ritmo atual se mantém. Saldo da carta = parcelas pendentes × valor da parcela (sem desconto de quitação antecipada). FIPE no retorno desvaloriza <input type="number" value="4" min="0" max="20" style="width:54px" onchange="setD(this.value)" aria-label="Desvalorização ao ano"> % ao ano; deságio sobre a FIPE <input type="number" value="15" min="0" max="50" style="width:54px" onchange="setC(this.value)" aria-label="Desconto sobre a FIPE"> %; a carta dos dois Unos é dividida 50/50.</p>
+</main>
+<script>
+let HOJE=new Date(),SEM=4.345,DESV=4,DESC=15;
+const SHEET_URL="https://docs.google.com/spreadsheets/d/e/2PACX-1vQ5-wtLVxwOr-6XA2uog2ami1fEjA7XD24E8f_3zngIUhlsPVXBIs7pVNarYYNUJ6WMRta8tFEB5-8j/pub?output=csv";
+const C=[
+{n:"Argo",mod:"Fiat Argo Drive 24/25",pago:45032.88,compra:"2025-08-15",E:35855,S:7875,sem:650,ult:"23/09",mot:null,dev:0,np:42,vp:531.62,sh:1,fipe:72307,ref:"FIPE jul/2026, Argo Drive 1.0 2025",obs:"Rolamento, disco e pastilha de freio"},
+{n:"Uno Branco",mod:"Fiat Uno 21/21",pago:19800,compra:"2026-03-15",E:11531,S:9733.9,sem:84.88,ult:"28/08",mot:"Zaqueu",dev:450,np:27,vp:719.27,sh:.5,fipe:44941,ref:"FIPE set/2026, Uno Attractive 1.0 2021",obs:"Radiador, velas, freio, embreagem, correia dentada, bomba d'água"},
+{n:"Uno Prata",mod:"Fiat Uno 20/20",pago:19800,compra:"2026-03-15",E:16041.04,S:16099.1,sem:424.25,ult:"27/09",mot:null,dev:0,np:27,vp:719.27,sh:.5,fipe:39476,ref:"FIPE set/2026, Uno Attractive 1.0 2020",obs:"Suspensão, correia dentada, embreagem, amortecedores, bateria"},
+{n:"Onix Branco",mod:"Onix Plus 21/21",pago:18010,compra:"2026-04-15",E:13064,S:3640,sem:575,ult:"15/09",mot:"Leandro",dev:1000,np:43,vp:1105.27,sh:1,fipe:66525,ref:"FIPE ago/2026, Onix Plus 1.0 TB Aut. 2021",obs:"Revisão completa, correia dentada, ar condicionado, freio"}];
+const MO0=[{"mo": {"2026-07": 3710, "2026-08": 3000, "2026-09": 2200}, "sd": 26945}, {"mo": {"2026-06": 200, "2026-07": 2440, "2026-08": 2079}, "sd": 6812}, {"mo": {"2026-08": 2086, "2026-09": 2508}, "sd": 11447.04}, {"mo": {"2026-06": 460, "2026-07": 3530, "2026-08": 3335, "2026-09": 1725}, "sd": 4014}];C.forEach((c,i)=>{c.mo=MO0[i].mo;c.sd=MO0[i].sd});
+const R=v=>v.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const F=d=>d.toLocaleDateString("pt-BR",{month:"short",year:"numeric"});
+function calc(){C.forEach(c=>{const w=(HOJE-new Date(c.compra))/6048e5;c.saldo=c.E-c.S;c.falta=Math.max(c.pago-c.saldo,0);c.pct=Math.min(c.saldo/c.pago*100,100);c.saiSem=c.S/w;c.liq=c.sem-c.saiSem;
+c.pw=c.liq>0?c.falta/c.liq:null;c.data=c.pw?new Date(+HOJE+c.pw*6048e5):null;c.cls=c.liq>0?"pos":"neg";
+c.par=c.vp*c.sh;c.dc=c.np*c.par;c.fv=c.fipe*(1-DESC/100);c.pat=c.fv-c.dc;
+c.caixa=c.liq*SEM-c.par;
+if(c.pw){const m=c.pw/SEM,rest=Math.max(c.np-m,0);c.dcR=rest*c.par;c.fipeR=c.fv*Math.pow(1-DESV/100,c.pw/52);c.patR=c.fipeR-c.dcR;c.rest=rest}})}
+calc();
+const tot=k=>C.reduce((a,c)=>a+c[k],0);
+function card(c){return `<div class="row"><h3><span>${c.n} <small class="note">${c.mod}</small></span><span class="${c.cls}">${c.liq>0?"retorno em "+F(c.data):"sem previsão de retorno"}</span></h3>
+<div class="bar" role="img" aria-label="${c.pct.toFixed(0)}% recuperado"><i style="width:${c.pct}%"></i></div>
+<div class="meta"><span>${c.pct.toFixed(1)}% recuperado</span><span>Falta ${R(c.falta)}</span><span>Carta: ${R(c.dc)}</span><span>Venda − carta: <b class="${c.pat>=0?"pos":"neg"}">${R(c.pat)}</b></span></div></div>`}
+function home(){const pago=tot("pago"),s=tot("saldo");
+return `<div class="grid"><div class="k"><small>Investido (valor pago)</small><b>${R(pago)}</b></div>
+<div class="k"><small>Entradas − saídas</small><b class="${s>=0?"pos":"neg"}">${R(s)}</b></div>
+<div class="k"><small>Falta para retorno total</small><b>${R(tot("falta"))}</b></div>
+<div class="k"><small>Saldo devedor das cartas</small><b>${R(tot("dc"))}</b><small>parcelas/mês: ${R(tot("par"))}</small></div>
+<div class="k"><small>FIPE da frota</small><b>${R(tot("fipe"))}</b><small>venda (−${DESC}%): ${R(tot("fv"))}</small></div>
+<div class="k"><small>Venda (FIPE −${DESC}%) − cartas</small><b class="${tot("pat")>=0?"pos":"neg"}">${R(tot("pat"))}</b></div>
+<div class="k"><small>Líquido mensal após parcelas</small><b class="${tot("caixa")>=0?"pos":"neg"}">${R(tot("caixa"))}</b></div></div>
+${[...C].sort((a,b)=>b.pct-a.pct).map(card).join("")}
+<div class="box"><table><tr><th>Carro</th><th>Pago</th><th>Entradas − saídas</th><th>Carta pendente</th><th>FIPE</th><th>Venda (−${DESC}%)</th><th>Venda − carta</th></tr>
+${C.map(c=>`<tr><td>${c.n}</td><td>${R(c.pago)}</td><td class="${c.saldo>=0?"pos":"neg"}">${R(c.saldo)}</td><td>${R(c.dc)}</td><td>${R(c.fipe)}</td><td>${R(c.fv)}</td><td class="${c.pat>=0?"pos":"neg"}">${R(c.pat)}</td></tr>`).join("")}</table></div>`}
+function hist(){const keys=[...new Set(C.flatMap(c=>Object.keys(c.mo)))].sort(),mt=k=>C.reduce((a,c)=>a+(c.mo[k]||0),0),max=Math.max(1,...keys.map(mt));
+const now=HOJE.getFullYear()+"-"+String(HOJE.getMonth()+1).padStart(2,"0"),lab=k=>MES[+k.slice(5)-1]+"/"+k.slice(0,4),sd=tot("sd"),all=keys.reduce((a,k)=>a+mt(k),0)+sd;
+const fm=keys.filter(k=>k!==now&&mt(k)>0),avg=fm.length?fm.reduce((a,k)=>a+mt(k),0)/fm.length:0,best=keys.reduce((b,k)=>mt(k)>mt(b)?k:b,keys[0]);
+return `<div class="grid"><div class="k"><small>Total recebido (todas as entradas)</small><b>${R(all)}</b></div>
+<div class="k"><small>Média mensal (meses fechados)</small><b>${R(avg)}</b></div>
+<div class="k"><small>Melhor mês</small><b>${best?lab(best):"-"}</b><small>${best?R(mt(best)):""}</small></div></div>
+<div class="box"><b>Recebido por mês</b>${keys.map(k=>`<div style="display:flex;align-items:center;gap:8px;margin:6px 0"><span style="width:70px;font-size:.85rem">${lab(k)}${k===now?"*":""}</span><div class="bar" style="flex:1;margin:0"><i style="width:${mt(k)/max*100}%"></i></div><span style="width:96px;text-align:right;font-size:.85rem">${R(mt(k))}</span></div>`).join("")}<p class="note">* mês em andamento (parcial).</p></div>
+<div class="box"><table><tr><th>Mês</th>${C.map(c=>`<th>${c.n}</th>`).join("")}<th>Total</th></tr>
+${keys.map(k=>`<tr><td>${lab(k)}${k===now?"*":""}</td>${C.map(c=>`<td>${R(c.mo[k]||0)}</td>`).join("")}<td><b>${R(mt(k))}</b></td></tr>`).join("")}
+${sd?`<tr><td>Sem data</td>${C.map(c=>`<td>${R(c.sd)}</td>`).join("")}<td><b>${R(sd)}</b></td></tr>`:""}
+<tr><td><b>Total</b></td>${C.map(c=>`<td><b>${R(Object.values(c.mo).reduce((a,v)=>a+v,0)+c.sd)}</b></td>`).join("")}<td><b>${R(all)}</b></td></tr></table>
+<p class="note">Soma de todas as entradas lançadas, sem o filtro de R$ 1.000 usado na média semanal. "Sem data" são entradas lançadas sem data na planilha.</p></div>`}
+function car(c,i){
+const ver=c.liq<=0?`<p class="neg"><b>Alerta:</b> ritmo atual negativo (${R(c.sem)}/sem de entrada contra ${R(c.saiSem)}/sem de saída). Sem mais receita ou menos gasto, o carro não retorna.</p>`:`<p>No ritmo atual faltam <b>${Math.ceil(c.pw)} semanas</b> (~${(c.pw/SEM).toFixed(1)} meses).</p>`;
+const ret=c.data?`<div class="box"><b>No momento do retorno (${F(c.data)})</b><table><tr><td>Venda estimada (FIPE −${DESC}%, −${DESV}% ao ano)</td><td>${R(c.fipeR)}</td></tr><tr><td>Parcelas restantes da carta</td><td>${Math.ceil(c.rest)} (${R(c.dcR)})</td></tr>
+<tr><td><b>Venda − saldo da carta</b></td><td class="${c.patR>=0?"pos":"neg"}"><b>${R(c.patR)}</b></td></tr></table><p class="note">Esse valor entra no seu bolso ao vender e quitar a carta, além de o carro já ter devolvido o valor pago.</p></div>`:`<div class="box"><b>Sem data de retorno</b><p class="note">Hoje, vender e quitar a carta deixaria ${R(c.pat)} (venda com −${DESC}% sobre a FIPE − carta).</p></div>`;
+return `<div class="grid"><div class="k"><small>Valor pago</small><b>${R(c.pago)}</b></div>
+<div class="k"><small>Entradas − saídas</small><b class="${c.saldo>=0?"pos":"neg"}">${R(c.saldo)}</b></div>
+<div class="k"><small>Falta para "carro de graça"</small><b>${R(c.falta)}</b></div>
+<div class="k"><small>Retorno previsto</small><b class="${c.cls}">${c.data?F(c.data):"sem previsão"}</b></div></div>
+<div class="box"><b>${c.pct.toFixed(1)}% do valor pago recuperado</b><div class="bar"><i style="width:${c.pct}%"></i></div>${ver}</div>
+<div class="box"><b>Consórcio e FIPE hoje</b><table><tr><td>Modelo</td><td>${c.mod}</td></tr>
+<tr><td>Parcelas pendentes</td><td>${c.np} × ${R(c.vp)}${c.sh<1?" (carta dividida com o outro Uno: sua parte "+R(c.par)+")":""}</td></tr>
+<tr><td>Saldo devedor da carta${c.sh<1?" (sua parte)":""}</td><td>${R(c.dc)}</td></tr>
+<tr><td>FIPE (editável)</td><td><input type="number" value="${c.fipe}" step="100" aria-label="FIPE ${c.n}" onchange="C[${i}].fipe=+this.value;calc();show(${i+2})"></td></tr>
+<tr><td>Valor de venda (FIPE −${DESC}%)</td><td>${R(c.fv)}</td></tr>
+<tr><td>Venda − carta</td><td class="${c.pat>=0?"pos":"neg"}"><b>${R(c.pat)}</b></td></tr>
+<tr><td>Líquido mensal após parcela</td><td class="${c.caixa>=0?"pos":"neg"}">${R(c.caixa)}</td></tr></table><p class="note">${c.ref}. Versão exata não informada: ajuste o valor se necessário.</p></div>
+${ret}
+<div class="box"><table><tr><td>Comprado em</td><td>${new Date(c.compra).toLocaleDateString("pt-BR",{month:"long",year:"numeric"})}</td></tr>
+<tr><td>Entrada média/semana (8 sem.)</td><td>${R(c.sem)}</td></tr><tr><td>Saída média/semana (desde a compra)</td><td>${R(c.saiSem)}</td></tr>
+<tr><td>Líquido/semana</td><td class="${c.cls}">${R(c.liq)}</td></tr><tr><td>Último pagamento</td><td>${c.ult}</td></tr>
+${c.mot?`<tr><td>Saldo devedor (${c.mot})</td><td>${R(c.dev)}</td></tr>`:""}
+<tr><td>Manutenções feitas</td><td>${c.obs}</td></tr></table></div>`}
+const tabs=[["Visão geral",home],["Histórico mensal",hist],...C.map((c,i)=>[c.n,()=>car(c,i)])];
+const nav=document.getElementById("tabs"),view=document.getElementById("view");
+function show(i){[...nav.children].forEach((b,j)=>b.setAttribute("aria-selected",i===j));view.innerHTML=tabs[i][1]()}
+tabs.forEach((t,i)=>{const b=document.createElement("button");b.textContent=t[0];b.setAttribute("role","tab");b.onclick=()=>show(i);nav.appendChild(b)});
+function setC(v){DESC=+v;calc();const a=[...nav.children].findIndex(b=>b.getAttribute("aria-selected")=="true");show(a)}
+function setD(v){DESV=+v;calc();const a=[...nav.children].findIndex(b=>b.getAttribute("aria-selected")=="true");show(a)}
+
+const sub=document.getElementById("sub");
+function csv(t){const o=[];let r=[],c="",q=false;for(let i=0;i<t.length;i++){const ch=t[i];
+if(q){if(ch=='"'){if(t[i+1]=='"'){c+='"';i++}else q=false}else c+=ch}
+else if(ch=='"')q=true;else if(ch==","){r.push(c);c=""}else if(ch=="\n"){r.push(c);o.push(r);r=[];c=""}else if(ch!="\r")c+=ch}
+if(c||r.length){r.push(c);o.push(r)}return o}
+let FMT="dmy";
+function num(s){if(s==null)return null;s=String(s).replace(/R\$|US\$|\s/g,"");if(!/\d/.test(s)||/[\/:]/.test(s)||/\d-\d/.test(s))return null;
+const neg=/^-|^\(/.test(s);s=s.replace(/[^\d.,]/g,"");const lc=s.lastIndexOf(","),ld=s.lastIndexOf("."),p=Math.max(lc,ld);let dec=-1;
+if(lc>=0&&ld>=0)dec=p;else if(p>=0){const after=s.length-p-1,cnt=(s.match(/[.,]/g)||[]).length;dec=(after===3||cnt>1)?-1:p}
+let v=dec<0?s.replace(/[.,]/g,""):s.slice(0,dec).replace(/[.,]/g,"")+"."+s.slice(dec+1);v=parseFloat(v);return isNaN(v)?null:(neg?-v:v)}
+function dt(s){s=String(s||"").trim();let m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);if(m)return new Date(+m[1],m[2]-1,+m[3]);
+if(/^\d{5}$/.test(s)&&+s>30000&&+s<80000)return new Date(1899,11,30+(+s));m=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);if(!m)return null;let a=+m[1],b=+m[2],y=+m[3];if(y<100)y+=2000;const d=FMT==="mdy"?new Date(y,a-1,b):new Date(y,b-1,a);return isNaN(d)?null:d}
+const MX={jan:0,fev:1,feb:1,mar:2,abr:3,apr:3,mai:4,may:4,jun:5,jul:6,ago:7,aug:7,set:8,sep:8,out:9,oct:9,nov:10,dez:11,dec:11};
+function pm(s){s=String(s||"").trim().toLowerCase();let mo,dy,m=s.match(/^(\d{1,2})\s*[-\/ ]\s*(?:de\s+)?([a-zç]{3,})/);
+if(m){mo=MX[m[2].slice(0,3)];dy=+m[1]}else if(m=s.match(/^(\d{1,2})\/(\d{1,2})$/)){dy=FMT==="mdy"?+m[2]:+m[1];mo=(FMT==="mdy"?+m[1]:+m[2])-1}
+return mo===undefined||isNaN(mo)||mo<0||mo>11?null:[mo,dy]}
+function y0(rows,b,tot){let k=0,prev=null,last=null;for(let r=6;r<tot;r++){if(num(rows[r][b+1])===null)continue;const s=String(rows[r][b]||"");if(dt(s))continue;const p=pm(s);if(!p)continue;if(prev!==null&&prev-p[0]>=6)k++;prev=p[0];last=p}
+if(!last)return HOJE.getFullYear();let Y=HOJE.getFullYear();if(new Date(Y,last[0],last[1])>new Date(+HOJE+1728e5))Y--;return Y-k}
+function dd(s,st){const f=dt(s);if(f){st.y=f.getFullYear();st.m=f.getMonth();return f}
+const p=pm(s);if(!p)return null;const mo=p[0];if(st.m-mo>=6)st.y++;st.m=mo;return new Date(st.y,mo,p[1])}
+function detect(rows){let dm=0,md=0;for(let r=6;r<rows.length;r++)for(const b of [0,4,8,12]){const m=String(rows[r][b]||"").match(/^(\d{1,2})\/(\d{1,2})\/\d{2,4}/);if(m){if(+m[1]>12)dm++;else if(+m[2]>12)md++}}FMT=md>dm?"mdy":"dmy"}
+const MES=["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+function mes(s){const m=String(s||"").match(/([A-Za-zÀ-ú]{3,})\s*\/\s*(\d{4})/);if(!m)return null;const i=MES.indexOf(m[1].slice(0,3).toLowerCase());return i<0?null:m[2]+"-"+String(i+1).padStart(2,"0")+"-15"}
+function params(rows){C.forEach((c,i)=>{const b=i*4,pg=num(rows[3]&&rows[3][b+2]);if(pg>0)c.pago=pg;const cm=mes(rows[1]&&rows[1][b+1]);if(cm)c.compra=cm;
+const p=rows[i+1]||[],g=k=>num(p[17+k]);if(g(1)!==null)c.np=g(1);if(g(2)!==null)c.vp=g(2);if(g(3)!==null)c.sh=g(3);if(g(4)!==null)c.fipe=g(4);if(g(5)!==null)c.dev=g(5)})}
+function apply(rows){detect(rows);params(rows);const lim=new Date(HOJE-56*864e5);
+C.forEach((c,i)=>{const b=i*4;let tot=rows.length;
+for(let r=6;r<rows.length;r++){if(num(rows[r][b+3])!==null){tot=r;break}}
+let E=0,S=0,rec=0,ult=null;c.bad=0;c.ex="";c.mo={};c.sd=0;const st={y:y0(rows,b,tot),m:0};
+for(let r=6;r<tot;r++){const e=num(rows[r][b+1]),s=num(rows[r][b+2]),d=dd(rows[r][b],st);
+if(e!==null){E+=e;if(d){const k=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");c.mo[k]=(c.mo[k]||0)+e}else c.sd+=e;if(!d&&String(rows[r][b]||"").trim()){c.bad++;c.ex=rows[r][b]}if(d&&d<=HOJE){if(d>=lim&&e<1000)rec+=e;if(e>0&&(!ult||d>ult))ult=d}}
+if(s!==null)S+=s}
+c.E=Math.round(E*100)/100;c.S=Math.round(S*100)/100;c.sem=rec/8;if(ult)c.ult=ult.toLocaleDateString("pt-BR",{day:"2-digit",month:"2-digit"})});}
+function cur(){return Math.max(0,[...nav.children].findIndex(b=>b.getAttribute("aria-selected")=="true"))}
+async function load(){HOJE=new Date();
+if(SHEET_URL.startsWith("COLE")){sub.textContent="Planilha não conectada: exibindo dados de 30/09/2026";return}
+sub.textContent="Atualizando…";
+try{const res=await fetch(SHEET_URL+(SHEET_URL.includes("?")?"&":"?")+"t="+Date.now(),{cache:"no-store"});if(!res.ok)throw 0;
+apply(csv(await res.text()));calc();show(cur());
+sub.textContent="Planilha lida em "+HOJE.toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})+" · datas "+FMT+" · última entrada: "+C.map(c=>c.n+" "+c.ult+(c.bad?" ⚠ "+c.bad+" datas ilegíveis, ex.: \""+c.ex+"\"":"")).join(", ")}
+catch(e){calc();show(cur());sub.textContent="Falha ao ler a planilha: exibindo dados de 30/09/2026"}}
+show(0);load();setInterval(load,3e5);
+</script></body></html>
